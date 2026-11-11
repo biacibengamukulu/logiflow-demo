@@ -1,0 +1,38 @@
+name: Demo smoke checks
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - '.github/workflows/demo-smoke.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'index.html'
+      - '.github/workflows/demo-smoke.yml'
+jobs:
+  demo-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify HTML demo script and loading scan feedback
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const vm = require('node:vm');
+          const assert = require('node:assert/strict');
+          const html = fs.readFileSync('index.html','utf8');
+          assert.match(html, /v0\.2\.52/);
+          assert.match(html, /function confirmLoading\(\)/);
+          assert.match(html, /Parcel loaded:/);
+          assert.match(html, /nextInput\.focus\(\)/);
+          assert.match(html, /saveLoadedCodes\(state\)/);
+          const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);
+          assert.ok(scripts.length > 0, 'Inline application script missing');
+          for (const script of scripts) new vm.Script(script);
+          console.log('Demo smoke checks passed');
+          NODE
